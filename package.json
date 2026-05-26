@@ -1,0 +1,12 @@
+{
+  "name": "gongjiawan-performance",
+  "version": "1.0.0",
+  "description": "龚家湾业绩统计系统",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
