@@ -140,7 +140,7 @@ const server = http.createServer(async (req, res) => {
       const total = Object.values(agg).reduce((a, b) => a + b, 0);
       return { idx: i, name: emp.name, position: emp.position || "", completed: agg, targets: targets, total: total };
     });
-    // Grand totals per task
+    // Grand totals per task (completed)
     const grandTotals = {};
     empData.forEach(ed => {
       Object.keys(ed.completed).forEach(tid => {
@@ -148,6 +148,13 @@ const server = http.createServer(async (req, res) => {
       });
     });
     const grandTotal = Object.values(grandTotals).reduce((a, b) => a + b, 0);
+    // Total targets per task (sum of all employee targets)
+    const totalTargets = {};
+    empData.forEach(ed => {
+      Object.keys(ed.targets).forEach(tid => {
+        totalTargets[tid] = (totalTargets[tid] || 0) + (ed.targets[tid] || 0);
+      });
+    });
     // Performance score = completed qty * unitScore
     empData.forEach(ed => {
       ed.scores = {};
@@ -164,7 +171,7 @@ const server = http.createServer(async (req, res) => {
       tasks: md.tasks || [],
       employees: empData,
       grandTotals: grandTotals,
-      grandTotal: grandTotal,
+      grandTotal: grandTotal, totalTargets: totalTargets,
       isCurrentMonth: month === getMonthKey()
     });
   }
