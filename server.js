@@ -1,4 +1,4 @@
-﻿const http = require("http");
+const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const DATA_FILE = path.join(__dirname, "data.json");
@@ -297,6 +297,46 @@ const server = http.createServer(async (req, res) => {
       if (emp.pass !== body.pass) return json(res, { ok: false, msg: "原密码错误" }, 403);
       emp.pass = body.newPass;
     }
+    saveData(d);
+    return json(res, { ok: true });
+  }
+
+
+  // 重置数据
+  if (req.method === "POST" && url === "/api/admin/reset") {
+    const body = await readBody(req);
+    const d = loadData();
+    if (!d.boss || d.boss.name !== body.bossName || d.boss.pass !== body.bossPass) return json(res, { ok: false, msg: "权限不足" }, 403);
+    const categories = [
+      { name: "贷款类奖励", items: ["个人贷款推荐落地（非客户经理）","客户经理个人贷款户数净增","个人贷款存量客户转贷","对公贷款推荐上门调查","客户经理对公贷款户数净增","对公贷款存量客户转贷"] },
+      { name: "个存/对公账户类奖励", items: ["新增个人存款","个人定期转存","对公账户开变销","对公存量有效户净增","对公新增有效账户","代发户净增","开户尽调"] },
+      { name: "网金类奖励", items: ["新增收单商户","盘活存量收单","信用卡有效户新增","信用卡月达标额外奖励","CRM+三星以上客户净增"] },
+      { name: "惩罚扣减", items: ["运营人为纰漏/有效投诉"] }
+    ];
+    const itemStandards = {
+      "个人贷款推荐落地（非客户经理）": "50/户",
+      "客户经理个人贷款户数净增": "100/户(非客户经理200)",
+      "个人贷款存量客户转贷": "300/户",
+      "对公贷款推荐上门调查": "笔",
+      "客户经理对公贷款户数净增": "5/笔",
+      "对公贷款存量客户转贷": "3/笔",
+      "新增个人存款": "10/笔",
+      "个人定期转存": "100/户",
+      "对公账户开变销": "按季度统计",
+      "对公存量有效户净增": "营销70%经办30%",
+      "对公新增有效账户": "20/户",
+      "代发户净增": "200/户",
+      "开户尽调": "10/人次",
+      "新增收单商户": "20/户(有效后50)",
+      "盘活存量收单": "项",
+      "信用卡有效户新增": "200/项",
+      "信用卡月达标额外奖励": "每月15张以上",
+      "CRM+三星以上客户净增": "次",
+      "运营人为纰漏/有效投诉": "100/次"
+    };
+    d.categories = categories;
+    d.itemStandards = itemStandards;
+    d.employees.forEach(e => { e.data = new Array(19).fill(0); e.notes = new Array(19).fill(""); });
     saveData(d);
     return json(res, { ok: true });
   }
