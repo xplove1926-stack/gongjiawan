@@ -248,8 +248,8 @@ document.getElementById("mSel").onchange=function(){cm=this.value;document.getEl
 document.getElementById("btnNewM").onclick=function(){var m=prompt("请输入新月份（格式：YYYY-MM）：");if(!m||!/^\d{4}-\d{2}$/.test(m)){toast("格式错误，请用 YYYY-MM");return;}if(ms.indexOf(m)<0){ms.push(m);ms.sort().reverse();}cm=m;renderMSel();loadData();};
 
 function loadData(){
-  if(me.isBoss){api("/api/month-data",{month:cm}).then(function(d){md=d;renderSum();renderPlan();renderPeople();});}
-  else{api("/api/my-entries",{empId:me.empId,pass:me.pass,month:cm}).then(function(d){if(d.ok){myd=d;renderEntry();renderMyPerf();}});}
+  if(me.isBoss){api("/api/month-data",{month:cm}).then(function(d){md=d;renderSum();renderPlan();renderPeople();}).catch(function(e){toast("加载数据失败: "+e.message);});}
+  else{api("/api/my-entries",{empId:me.empId,pass:me.pass,month:cm}).then(function(d){if(d.ok){myd=d;renderEntry();renderMyPerf();}else{toast(d.msg||"加载失败");}}).catch(function(e){toast("加载数据失败");});}
 }
 
 // ========== TAB SWITCH ==========
@@ -282,7 +282,7 @@ function renderSum(){
       eh+='<span class="te-del" onclick="delTaskById(\''+t.id+'\')">✕</span>';
       eh+='</div>';
     });
-    eh+='<div class="te-add"><input id="tnm'+ci+'" placeholder="新项目名称"><input id="tsc'+ci+'" type="number" placeholder="分值(元)" style="max-width:65px"><input id="tst'+ci+'" placeholder="标准" style="max-width:90px"><button class="abtn abtn-g" style="padding:4px 10px;font-size:11px" onclick="addItem('+ci+',\''+cn.replace(/'/g,"\\'")+'\')">+</button></div>';
+    eh+='<div class="te-add"><input id="tnm'+ci+'" placeholder="新项目名称"><input id="tsc'+ci+'" type="number" placeholder="分值" style="max-width:65px"><input id="tst'+ci+'" placeholder="标准" style="max-width:90px"><button class="abtn abtn-g" style="padding:4px 10px;font-size:11px" onclick="addItem('+ci+',\''+cn.replace(/'/g,"\\'")+'\')">+</button></div>';
     eh+='</div>';
   });
   eh+='<div class="te-add" style="margin-top:8px"><input id="ncn" placeholder="新分类名称"><button class="abtn abtn-g" style="padding:6px 14px;font-size:12px" onclick="addCategory()">+ 添加分类</button></div>';
@@ -333,7 +333,10 @@ function addItem(ci,cn){
 }
 function addCategory(){
   var nm=document.getElementById("ncn").value.trim();if(!nm)return toast("请输入分类名称");
-  document.getElementById("ncn").value="";toast("分类已创建，请添加项目后保存",true);
+  if(!md.tasks)md.tasks=[];
+  document.getElementById("ncn").value="";
+  toast("分类已创建，请添加项目并保存",true);
+  renderSum();
 }
 function delTaskById(tid){if(!confirm("删除此任务？"))return;md.tasks=md.tasks.filter(function(t){return t.id!==tid;});renderSum();}
 function delCategory(cn){if(!confirm("删除分类 \""+cn+"\" 及其中所有任务？"))return;md.tasks=md.tasks.filter(function(t){return t.category!==cn;});renderSum();}
@@ -341,9 +344,10 @@ function editTaskName(tid,v){var t=md.tasks.find(function(x){return x.id===tid;}
 function editTaskScore(tid,v){var t=md.tasks.find(function(x){return x.id===tid;});if(t)t.unitScore=v?parseFloat(v):null;}
 function editTaskStd(tid,v){var t=md.tasks.find(function(x){return x.id===tid;});if(t)t.standard=v;}
 function saveTasks(){
-  api("/api/admin/save-tasks",Object.assign(adm(),{month:cm,tasks:md.tasks||[]})).then(function(d){
-    if(d.ok){toast("✅ 任务已保存",true);loadData();}else toast(d.msg||"保存失败");
-  });
+  var ts=md.tasks||[];
+  api("/api/admin/save-tasks",Object.assign(adm(),{month:cm,tasks:ts})).then(function(d){
+    if(d.ok){toast("✅ 已保存 "+ts.length+" 项任务",true);loadData();}else toast(d.msg||"保存失败");
+  }).catch(function(e){toast("保存失败: "+e.message);});
 }
 
 // ========== BOSS: PLAN (Target Assignment) ==========
@@ -357,7 +361,7 @@ function renderPlan(){
     var tg=e.targets||{};
     h+='<div class="tg-card"><h5>👤 '+e.name+' <span style="font-size:10px;color:#8bab94;font-weight:400">'+(e.position||"未设岗位")+'</span></h5>';
     tasks.forEach(function(t){
-      h+='<div class="tg-rw"><span>'+t.name+' <span style="font-size:10px;color:#8bab94">('+(t.unitScore||"--")+'元)</span></span>';
+      h+='<div class="tg-rw"><span>'+t.name+' <span style="font-size:10px;color:#8bab94">('+(t.unitScore||"--")+')</span></span>';
       h+='<input type="number" id="tgv'+i+'_'+t.id.replace(/[^a-zA-Z0-9]/g,"_")+'" value="'+(tg[t.id]||"")+'" onchange="markTG('+i+',\''+t.id+'\')" placeholder="目标">';
       h+='</div>';
     });
@@ -432,13 +436,12 @@ function renderMyPerf(){
   var tasks=myd.tasks||[],comp=myd.completed||{},tgs=myd.targets||{};
   var tq=0,ts=0;
   Object.keys(comp).forEach(function(tid){tq+=comp[tid];var t=tasks.find(function(x){return x.id===tid;});if(t&&t.unitScore)ts+=comp[tid]*t.unitScore;});
-  document.getElementById("pStats").innerHTML='<div class="pstat"><div class="big">'+tq+'</div><div class="lbl">📈 总完成数</div></div><div class="pstat"><div class="big">'+ts+'</div><div class="lbl">💰 绩效得分（元）</div></div><div class="pstat"><div class="big">'+tasks.length+'</div><div class="lbl">📋 考核项目数</div></div>';
+  document.getElementById("pStats").innerHTML='<div class="pstat"><div class="big">'+tq+'</div><div class="lbl">📈 总完成数</div></div><div class="pstat"><div class="big">'+ts+'</div><div class="lbl">💰 绩效得分</div></div><div class="pstat"><div class="big">'+tasks.length+'</div><div class="lbl">📋 考核项目数</div></div>';
   var cats=[],cmap={};
   tasks.forEach(function(t){var cn=t.category||"其他";if(!cmap[cn]){cmap[cn]=[];cats.push(cn);}cmap[cn].push(t);});
-  var h='<table class="mptbl"><thead><tr><th>分类</th><th>考核项目</th><th>目标</th><th>完成</th><th>完成率</th><th>分值/单位</th><th>绩效得分</th></tr></thead><tbody>';
-  if(tasks.length===0){h+='<tr><td colspan="7" style="color:#8bab94;padding:20px">本月暂无任务</td></tr>';}
-  else{cats.forEach(function(cn){h+='<tr class="cat-r"><td colspan="7">🌿 '+cn+'</td></tr>';cmap[cn].forEach(function(t){var c=comp[t.id]||0,tg=tgs[t.id]||0,rate=tg>0?Math.round(c/tg*100):(c>0?">100":"-");var sc=t.unitScore?(c*t.unitScore):"-",cls=c>=tg&&tg>0?"hit":"miss";h+='<tr><td></td><td style="text-align:left">'+t.name+'</td><td>'+(tg||"-")+'</td><td style="font-weight:700">'+c+'</td><td class="'+cls+'">'+(typeof rate==="number"?rate+"%":rate)+'</td><td style="font-size:11px;color:#8bab94">'+(t.unitScore||"未设")+'</td><td style="font-weight:700;color:#1a5c2e">'+sc+'</td></tr>';});});}
+  var h='<table class="mptbl"><thead><tr><th>分类</th><th>考核项目</th><th>目标</th><th>完成</th><th>剩余</th><th>完成率</th><th>分值/单位</th><th>绩效得分</th></tr></thead><tbody>';
+  if(tasks.length===0){h+='<tr><td colspan="8" style="color:#8bab94;padding:20px">本月暂无任务</td></tr>';}
+  else{cats.forEach(function(cn){h+='<tr class="cat-r"><td colspan="8">🌿 '+cn+'</td></tr>';cmap[cn].forEach(function(t){var c=comp[t.id]||0,tg=tgs[t.id]||0,rate=tg>0?Math.round(c/tg*100):(c>0?">100":"-");var sc=t.unitScore?(c*t.unitScore):"-",cls=c>=tg&&tg>0?"hit":"miss";var remain=tg>0?Math.max(0,tg-c):"-";h+='<tr><td></td><td style="text-align:left">'+t.name+'</td><td>'+(tg||"-")+'</td><td style="font-weight:700">'+c+'</td><td style="font-weight:700;color:'+(tg>0&&c<tg?'#c94040':'#8bab94')+'">'+remain+'</td><td class="'+cls+'">'+(typeof rate==="number"?rate+"%":rate)+'</td><td style="font-size:11px;color:#8bab94">'+(t.unitScore||"未设")+'</td><td style="font-weight:700;color:#1a5c2e">'+sc+'</td></tr>';});});}
   h+='</tbody></table>';document.getElementById("myPerfT").innerHTML=h;
 }
-
 </script></body></html>
