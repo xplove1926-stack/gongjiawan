@@ -324,7 +324,7 @@ function toast(m,ok){
 }
 function api(url,body){
   return fetch(API+url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})})
-  .then(function(r){return r.json();});
+  .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();});
 }
 function adm(){return{bossName:me.name,bossPass:me.bossPass||""};}
 
@@ -469,6 +469,11 @@ function switchTab(t){
 function renderSummary(){
   if(!monthData)return;
   var tasks=monthData.tasks||[],emps=monthData.employees||[],gt=monthData.grandTotals||{},tt=monthData.totalTargets||{};
+  if(tasks.length===0){
+    document.getElementById("summaryProgress").innerHTML="<p style=\"color:#8bab94;text-align:center;padding:30px\">📋 本月暂无任务数据<br><span style=\"font-size:12px\">请先在【月度计划】中设置任务项目</span></p>";
+    document.getElementById("summaryTbl").innerHTML="<p style=\"color:#8bab94;text-align:center;padding:20px\">暂无数据</p>";
+    return;
+  }
   var progHtml="";tasks.forEach(function(t){var target=tt[t.id]||0,done=gt[t.id]||0;var pct=target>0?Math.round(done/target*100):(done>0?100:0);var bc=pct>=100?"#6bc98a":(pct>=50?"#a8d98a":"#f0d078");progHtml+="<div style=\"display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #eaf7ee;font-size:12px\">";progHtml+="<span style=\"width:130px;color:#2d6a3f;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis\" title=\""+t.name.replace(/"/g,"&quot;")+"\">"+t.name+"</span>";progHtml+="<span style=\"width:50px;text-align:right;color:#8bab94;font-size:11px\">目标 "+target+"</span>";progHtml+="<span style=\"width:50px;text-align:right;font-weight:700;color:#1a5c2e\">完成 "+done+"</span>";progHtml+="<div style=\"flex:1;min-width:80px;height:14px;background:#e8f5e9;border-radius:7px;overflow:hidden\"><div style=\"height:100%;width:"+Math.min(pct,100)+"%;background:"+bc+";border-radius:7px;transition:width .4s\"></div></div>";progHtml+="<span style=\"width:38px;text-align:right;font-weight:700;font-size:12px;color:"+(pct>=100?"#1a5c2e":"#e67e22")+"\">"+pct+"%</span>";progHtml+="</div>";});
   var thead='<tr><th class="row-hdr" rowspan="2">#</th><th class="row-hdr" rowspan="2">姓名</th><th class="row-hdr" rowspan="2">岗位</th>';
   // Group tasks by category
@@ -518,6 +523,11 @@ function renderSummary(){
 function renderPlan(){
   if(!monthData)return;
   var tasks=monthData.tasks||[];
+  if(tasks.length===0){
+    document.getElementById("planTasks").innerHTML="<p style=\"color:#8bab94;text-align:center;padding:30px\">🌿 本月暂无任务，请在下方添加分类和考核项目</p>";
+    document.getElementById("targetGrid").innerHTML="<p style=\"color:#8bab94;text-align:center;padding:20px\">请先设置任务项目，再下发目标</p>";
+    return;
+  }
   // Render task editor grouped by category
   var cats=[],catMap={};
   tasks.forEach(function(t){
@@ -530,7 +540,7 @@ function renderPlan(){
     h+='<div class="plan-cat"><h4>🌿 '+cn+' <span class="cat-del" onclick="delCat(\''+cn.replace(/'/g,"\\'")+'\')">删除分类</span></h4>';
     catMap[cn].forEach(function(t,ti){
       h+='<div class="plan-task">';
-      h+='<input class="task-name" value="'+t.name.replace(/"/g,"&quot;")+'" data-cat="'+cn.replace(/"/g,"&quot;")+'" data-idx="'+ti+'" onchange="taskChanged()" placeholder="考核项目名称">';
+      h+='<input class="task-name" value="'+t.name.replace(/"/g,"&quot;")+'" data-cat="'+cn.replace(/"/g,"&quot;")+'" data-idx="'+ti+'" data-id="'+(t.id||"")+'" onchange="taskChanged()" placeholder="考核项目名称">';
       h+='<input class="task-score" type="number" value="'+((t.unitScore||t.unitScore===0)?t.unitScore:"")+'" data-cat="'+cn.replace(/"/g,"&quot;")+'" data-idx="'+ti+'" data-field="unitScore" onchange="taskChanged()" placeholder="分值" title="每单位绩效分值（元）">';
       h+='<input class="task-std" value="'+(t.standard||"").replace(/"/g,"&quot;")+'" data-cat="'+cn.replace(/"/g,"&quot;")+'" data-idx="'+ti+'" data-field="standard" onchange="taskChanged()" placeholder="核算标准">';
       h+='<span class="task-del" onclick="delTask(\''+cn.replace(/'/g,"\\'")+'\','+ti+')" title="删除">✕</span>';
@@ -560,7 +570,7 @@ function addTask(cn,ci){
   var sc=parseFloat(document.getElementById("newTaskScore"+ci).value)||null;
   var st=document.getElementById("newTaskStd"+ci).value.trim();
   if(!monthData.tasks)monthData.tasks=[];
-  monthData.tasks.push({id:"t"+Date.now(),name:nm,category:cn,unitScore:sc||null,standard:st});
+  monthData.tasks.push({id:"t"+Date.now().toString(36),name:nm,category:cn,unitScore:sc||null,standard:st});
   renderPlan();
 }
 function delTask(cn,ti){
@@ -594,7 +604,7 @@ function saveTasks(){
     var stdEl=row.querySelector(".task-std");
     if(!nameEl||!nameEl.value.trim())return;
     tasks.push({
-      id:nameEl.getAttribute("data-cat")+"-"+nameEl.getAttribute("data-idx")+"-"+Date.now(),
+      id:nameEl.getAttribute("data-id")||("t"+Date.now()),
       name:nameEl.value.trim(),
       category:nameEl.getAttribute("data-cat"),
       unitScore:scoreEl?(parseFloat(scoreEl.value)||null):null,
