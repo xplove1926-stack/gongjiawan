@@ -179,7 +179,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;color:#333;min-heigh
 <div class="toast" id="tst" style="opacity:0"></div>
 
 <script>
-var A=location.origin,me=null,ms=[],cm="",md=null,myd=null;
+var A=location.origin,me=null,ms=[],cm="",md=null,myd=null,pendingCats=[];
 
 function toast(m,ok){var t=document.getElementById("tst");t.textContent=m;t.className="toast "+(ok?"toast-ok":"toast-err");t.style.opacity="1";clearTimeout(t._t);t._t=setTimeout(function(){t.style.opacity="0"},2200);}
 function api(url,body){return fetch(A+url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();});}
@@ -271,7 +271,7 @@ function renderSum(){
   var cats=[],cmap={};
   tasks.forEach(function(t){var cn=t.category||"其他";if(!cmap[cn]){cmap[cn]=[];cats.push(cn);}cmap[cn].push(t);});
   var eh="";
-  if(cats.length===0){eh='<p style="color:#8bab94;text-align:center;padding:16px">暂未添加任务分类，请在下方创建</p>';}
+  if(cats.length===0&&pendingCats.length===0){eh='<p style="color:#8bab94;text-align:center;padding:16px">暂未添加任务分类，请在下方创建</p>';}
   cats.forEach(function(cn,ci){
     eh+='<div class="te-cat"><h4>🌿 '+cn+' <span style="font-size:11px;color:#c94040;cursor:pointer;font-weight:400" onclick="delCategory(\''+cn.replace(/'/g,"\\'")+'\')">删除分类</span></h4>';
     cmap[cn].forEach(function(t){
@@ -285,7 +285,7 @@ function renderSum(){
     eh+='<div class="te-add"><input id="tnm'+ci+'" placeholder="新项目名称"><input id="tsc'+ci+'" type="number" placeholder="分值" style="max-width:65px"><input id="tst'+ci+'" placeholder="标准" style="max-width:90px"><button class="abtn abtn-g" style="padding:4px 10px;font-size:11px" onclick="addItem('+ci+',\''+cn.replace(/'/g,"\\'")+'\')">+</button></div>';
     eh+='</div>';
   });
-  eh+='<div class="te-add" style="margin-top:8px"><input id="ncn" placeholder="新分类名称"><button class="abtn abtn-g" style="padding:6px 14px;font-size:12px" onclick="addCategory()">+ 添加分类</button></div>';
+  pendingCats.forEach(function(cn,ci){var pci=cats.length+ci;eh+='<div class="te-cat"><h4>🌿 '+cn+' <span style="font-size:11px;color:#c94040;cursor:pointer;font-weight:400" onclick="removePendingCat(\\"'+cn.replace(/'/g,"\\\\\\'")+'\\")">删除</span></h4><div class="te-add"><input id="tnm"+pci+'" placeholder="新项目名称"><input id="tsc"+pci+'" type="number" placeholder="分值" style="max-width:65px"><input id="tst"+pci+'" placeholder="标准" style="max-width:90px"><button class="abtn abtn-g" style="padding:4px 10px;font-size:11px" onclick="addItem('+pci+',\\"'+cn.replace(/'/g,"\\\\\\'")+'\\")">+</button></div></div>';});eh+='<div class="te-add" style="margin-top:8px"><input id="ncn" placeholder="新分类名称"><button class="abtn abtn-g" style="padding:6px 14px;font-size:12px" onclick="addCategory()">+ 添加分类</button></div>';
   eh+='<div style="text-align:center;margin-top:10px"><button class="abtn abtn-g" onclick="saveTasks()" style="padding:10px 28px;font-size:14px">💾 保存全部任务</button></div>';
   document.getElementById("taskEd").innerHTML=eh;
 
@@ -329,16 +329,16 @@ function addItem(ci,cn){
   var sc=document.getElementById("tsc"+ci).value,st=document.getElementById("tst"+ci).value.trim();
   if(!md.tasks)md.tasks=[];
   md.tasks.push({id:"t"+Date.now().toString(36),name:nm,category:cn,unitScore:sc?parseFloat(sc):null,standard:st});
+  var pi=pendingCats.indexOf(cn);if(pi>=0)pendingCats.splice(pi,1);
   renderSum();
-}
-function addCategory(){
+}function addCategory(){
   var nm=document.getElementById("ncn").value.trim();if(!nm)return toast("请输入分类名称");
-  if(!md.tasks)md.tasks=[];
+  if(pendingCats.indexOf(nm)<0)pendingCats.push(nm);
   document.getElementById("ncn").value="";
-  toast("分类已创建，请添加项目并保存",true);
+  toast("分类已创建，请在下方添加项目",true);
   renderSum();
 }
-function delTaskById(tid){if(!confirm("删除此任务？"))return;md.tasks=md.tasks.filter(function(t){return t.id!==tid;});renderSum();}
+function removePendingCat(cn){var pi=pendingCats.indexOf(cn);if(pi>=0)pendingCats.splice(pi,1);renderSum();}function delTaskById(tid){if(!confirm("删除此任务？"))return;md.tasks=md.tasks.filter(function(t){return t.id!==tid;});renderSum();}
 function delCategory(cn){if(!confirm("删除分类 \""+cn+"\" 及其中所有任务？"))return;md.tasks=md.tasks.filter(function(t){return t.category!==cn;});renderSum();}
 function editTaskName(tid,v){var t=md.tasks.find(function(x){return x.id===tid;});if(t)t.name=v;}
 function editTaskScore(tid,v){var t=md.tasks.find(function(x){return x.id===tid;});if(t)t.unitScore=v?parseFloat(v):null;}
