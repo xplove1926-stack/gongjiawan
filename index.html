@@ -245,7 +245,8 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;color:#333;min-heigh
 
 <!-- ===== TAB: Summary (Boss) ===== -->
 <div id="tabSummary" class="tab-content" style="display:none">
-<div class="card"><h3>📊 全员业绩汇总</h3><div class="sum-wrap" id="summaryTbl"></div></div>
+<div class="card"><h3>📈 全行任务完成汇总</h3><div id="summaryProgress"></div></div>
+<div class="card"><h3>👥 员工任务完成明细</h3><div class="sum-wrap" id="summaryTbl"></div></div>
 </div>
 
 <!-- ===== TAB: Plan (Boss) ===== -->
@@ -510,7 +511,7 @@ function renderSummary(){
   emps.forEach(function(e){gtScore+=e.totalScore||0;});
   tbody+='<td style="background:#d4eedb;font-weight:700;font-size:14px">'+monthData.grandTotal+'</td>';
   tbody+='<td style="background:#d4eedb;font-weight:700;font-size:13px;color:#1a5c2e">'+gtScore+'</td></tr>';
-  document.getElementById("summaryTbl").innerHTML='<div class="card" style="margin-bottom:10px;padding:12px 16px"><h3 style="font-size:13px;margin-bottom:8px">📈 全行任务完成进度</h3>'+progHtml+'</div><table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
+  document.getElementById("summaryProgress").innerHTML=progHtml||"<p style=\"color:#8bab94;text-align:center;padding:20px\">暂无任务数据，请先在【月度计划】中添加任务</p>";document.getElementById("summaryTbl").innerHTML="<table><thead>"+thead+"</thead><tbody>"+tbody+"</tbody></table>";
 }
 
 // ===== BOSS: PLAN (Tasks + Targets) =====

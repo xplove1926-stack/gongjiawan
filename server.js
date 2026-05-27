@@ -81,7 +81,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ===== INIT: get all data for frontend =====
-  if (req.method === "GET" && url === "/api/init") {
+  if ((req.method === "GET" || req.method === "POST") && url === "/api/init") {
     const d = ld();
     const months = Object.keys(d.months || {});
     const currentMonth = getMonthKey();
